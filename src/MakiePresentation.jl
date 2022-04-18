@@ -84,7 +84,7 @@ function Presentation(; kwargs...)
     )
     layout.parent = f
 
-    p = Presentation(parent, f, 1, Function[])
+    p = Presentation(parent, f, 1, Function[], Bool[])
 
     # Interactions
     on(events(parent.scene).keyboardbutton, priority = -1) do event
@@ -110,7 +110,7 @@ function _set_slide_idx!(p::Presentation, i)
     if i != p.idx && (1 <= i <= length(p.slides))
         p.idx = i
         p.clear[p.idx] && empty!(p.fig)
-        p.slides[p.idx](p)
+        p.slides[p.idx](p.fig)
     end
     return
 end
@@ -146,9 +146,10 @@ function add_slide!(f::Function, p::Presentation, clear = true)
     # generate these plots...
     # That also validates that they work
     try
-        f(p)
+        clear && empty!(p.fig)
+        f(p.fig)
         push!(p.slides, f)
-        push!(p.clear, clear)
+        push!(p.clear, p.idx == 1 || clear) # always clear first slide
         p.idx = length(p.slides)
     catch e
         @error "Failed to add slide - maybe the function signature does not match f(::Presentation)?"
