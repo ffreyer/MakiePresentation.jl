@@ -14,6 +14,30 @@ mutable struct Presentation
     slides::Vector{Function}
 end
 
+"""
+    Presentation(; kwargs...)
+
+Creates a `pres::Presentation` with two figures `pres.parent` and `pres.fig`. 
+The former remains static during the presentation and acts as the background and 
+window.  The latter acts as the slide and gets cleared and reassambled every 
+time a new slide is requested. (This includes events.)
+
+To add a slide use:
+
+    add_slide!(pres) do fig
+        # Plot your slide to fig
+    end
+
+Note that `add_slide!` immediately switches to and draws the newly added slide. 
+This is done to get rid of compilation times beforehand.
+
+To switch to a different slide:
+- `next_slide!(pres)`: Advance to the next slide. Default keys: Keyboard.right, Keyboard.enter
+- `previous_slide!(pres)`: Go to the previous slide. Default keys: Keyboard.left
+- `reset!(pres)`: Go to the first slide. Defaults keys: Keyboard.home
+- `set_slide_idx!(pres, idx)`: Go a specified slide.
+
+"""
 function Presentation(; kwargs...)
     # This is a modified version of the Figure() constructor.
     parent = Figure(; kwargs...)
@@ -61,12 +85,14 @@ function Presentation(; kwargs...)
     p = Presentation(parent, f, 1, Function[])
 
     # Interactions
-    on(events(parent.scene).keyboardbutton, priority = 120) do event
+    on(events(parent.scene).keyboardbutton, priority = -1) do event
         if event.action == Keyboard.release
             if event.key in (Keyboard.right, Keyboard.enter)
                 next_slide!(p)
             elseif event.key in (Keyboard.left,)
                 previous_slide!(p)
+            elseif event.key in (Keyboard.home,)
+                reset!(p)
             end
         end
     end
@@ -107,6 +133,6 @@ function add_slide!(f::Function, p)
 end
 
 export Presentation
-export add_slide!, reset!
+export add_slide!, set_slide_idx!, next_slide!, previous_slide!, reset!
 
 end
