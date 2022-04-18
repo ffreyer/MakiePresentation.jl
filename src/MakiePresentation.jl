@@ -12,6 +12,7 @@ mutable struct Presentation
 
     idx::Int
     slides::Vector{Function}
+    clear::Vector{Bool}
 end
 
 """
@@ -24,7 +25,7 @@ time a new slide is requested. (This includes events.)
 
 To add a slide use:
 
-    add_slide!(pres) do fig
+    add_slide!(pres[, clear = true]) do fig
         # Plot your slide to fig
     end
 
@@ -41,6 +42,7 @@ To switch to a different slide:
 function Presentation(; kwargs...)
     # This is a modified version of the Figure() constructor.
     parent = Figure(; kwargs...)
+    # translate!(parent.scene, 0, 0, 1) # more will be incompatible with space = :relative
 
     kwargs_dict = Dict(kwargs)
     padding = pop!(kwargs_dict, :figure_padding, Makie.current_default_theme()[:figure_padding])
@@ -104,26 +106,49 @@ Base.display(p::Presentation) = display(p.parent)
 Base.getindex(p::Presentation, idxs...) = getindex(p.fig, idxs...)
 Base.empty!(p::Presentation) = empty!(p.fig)
 
-function set_slide_idx!(p::Presentation, i)
+function _set_slide_idx!(p::Presentation, i)
     if i != p.idx && (1 <= i <= length(p.slides))
         p.idx = i
-        empty!(p.fig)
+        p.clear[p.idx] && empty!(p.fig)
         p.slides[p.idx](p)
     end
     return
 end
+function set_slide_idx!(p::Presentation, i)
+    # If we jump randomly we need to start from the last cleared fig and build
+    # the current slide up from there.
+    if p.clear[i]
+        _set_slide_idx!(p, i)
+    else
+        idx = i
+        while !p.clear[idx] && idx > 1
+            idx -= 1
+        end
+        for j in idx:i
+            _set_slide_idx!(p, j)
+        end
+    end
+    return
+end
 
-next_slide!(p::Presentation) = set_slide_idx!(p, p.idx + 1)
+next_slide!(p::Presentation) = _set_slide_idx!(p, p.idx + 1)
 previous_slide!(p::Presentation) = set_slide_idx!(p, p.idx - 1)
-reset!(p::Presentation) = set_slide_idx!(p, 1)
+reset!(p::Presentation) = _set_slide_idx!(p, 1)
 
-function add_slide!(f::Function, p)
+"""
+    add_slide!(f::Function, presentation[, clear = true])
+
+Adds a new slide add the end of the Presentation. If `clear = true` the previous
+figure will be reset before drawing.
+"""
+function add_slide!(f::Function, p::Presentation, clear = true)
     # To avoid compile time during presentation we should probably actually 
     # generate these plots...
     # That also validates that they work
     try
         f(p)
         push!(p.slides, f)
+        push!(p.clear, clear)
         p.idx = length(p.slides)
     catch e
         @error "Failed to add slide - maybe the function signature does not match f(::Presentation)?"
