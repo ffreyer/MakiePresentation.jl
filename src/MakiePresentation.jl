@@ -13,6 +13,7 @@ mutable struct Presentation
     idx::Int
     slides::Vector{Function}
     clear::Vector{Bool}
+    locked::Bool
 end
 
 """
