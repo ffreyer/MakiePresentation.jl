@@ -1,3 +1,3 @@
 # MakiePresentation
 
-Requires Makie.jl#1818, Makie.jl#1819, GridLayoutBase.jl#master. Very experimental.
+Moved to https://github.com/fatteneder/MakieSlides.jl
